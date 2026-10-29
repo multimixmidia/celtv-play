@@ -254,3 +254,45 @@ body.playing #fsVideoHost{background:transparent}
 
 .rcvQr{width:18rem;height:18rem;margin:1.2rem auto;background:#fff;border-radius:1rem;padding:.8rem;display:flex;align-items:center;justify-content:center}
 .rcvQr img{width:100%;height:100%;image-rendering:pixelated}
+
+/* ═══════════ MODO CELULAR (rolagem / toque) ═══════════ */
+html.phone{font-size:min(calc(100vw / 26), 19px)}
+html.phone,body.phone{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body.phone .screen{position:relative;inset:auto;min-height:100vh;height:auto;overflow:visible;padding:1rem 1rem 3rem}
+body.phone #s-home.home{padding:0}
+/* colunas empilham e rolam com a página */
+body.phone .cols{flex-direction:column;min-height:0;gap:1rem}
+body.phone .col{min-height:0}
+body.phone .col.cats{max-height:40vh}
+body.phone .scroll{overflow:visible;flex:none;height:auto}
+body.phone .col.cats .scroll,body.phone .col.chans .scroll{overflow-y:auto;max-height:36vh}
+/* grades: menos colunas */
+body.phone .grid{grid-template-columns:repeat(3,1fr);gap:.8rem}
+body.phone .homeGrid{grid-template-columns:repeat(2,1fr);grid-auto-rows:1fr;height:auto}
+body.phone .gridWrap .scroll{overflow:visible}
+/* fileiras horizontais: arrastar com o dedo */
+body.phone .homescroll{overflow:visible;margin-top:-3rem}
+body.phone .rowscroll{overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity}
+body.phone .rowscroll .pcard,body.phone .rowscroll .ccard,body.phone .rowscroll .lcard{scroll-snap-align:start}
+body.phone .hero{height:auto;min-height:38vh;padding:7rem 1rem 1rem}
+body.phone .heroinfo{max-width:100%}
+/* topo / menu da home quebram linha */
+body.phone .nav{flex-wrap:wrap;padding:.8rem 1rem;gap:.8rem}
+body.phone .menu{order:3;width:100%;overflow-x:auto;gap:1.1rem}
+body.phone .mi{white-space:nowrap}
+body.phone .navsp{display:none}
+/* login empilha */
+body.phone .login{flex-direction:column;align-items:stretch;gap:1.4rem;padding-top:0}
+body.phone .loginBox,body.phone .profiles{width:100%;max-width:100%}
+/* detalhe (filme/série) empilha */
+body.phone .detail{flex-direction:column;gap:1.2rem}
+body.phone .dposter{width:14rem;margin:0 auto}
+body.phone .dplot{max-height:none}
+body.phone .eps{min-height:16rem}
+/* preview da TV ao vivo e receber: vira bloco */
+body.phone .prev{padding:0}
+body.phone .pbox,body.phone #liveBox,body.phone #rcvBox{aspect-ratio:16/9;height:auto}
+/* foco mais discreto no toque (sem “pular”) */
+body.phone .f.focus{transform:none}
+/* player em tela cheia continua ocupando tudo */
+body.phone #fsOverlay{position:fixed}

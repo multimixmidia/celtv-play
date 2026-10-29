@@ -29,6 +29,15 @@
     Store.set('dev_id', id); return id;
   }
   function profBackup() { if (!cloudOn()) return; try { cloudRpc('celtv_prof_save', { p_duid: deviceId(), p_prof: profiles }, function () {}); } catch (e) {} }
+  /* ── Modo de navegação: tv (controle) ou phone (rolagem/toque) ── */
+  function defaultMode() { var p = msgPlat(); return (p === 'tizen' || p === 'webos' || p === 'androidtv') ? 'tv' : 'phone'; }
+  function uiMode() { return Store.get('uimode', defaultMode()); }
+  function applyMode() {
+    var on = (uiMode() === 'phone');
+    try { document.documentElement.classList[on ? 'add' : 'remove']('phone'); } catch (e) {}
+    try { document.body.classList[on ? 'add' : 'remove']('phone'); } catch (e) {}
+  }
+  function toggleMode() { Store.set('uimode', uiMode() === 'phone' ? 'tv' : 'phone'); applyMode(); }
   function pid() { var p = Api.profile(); return p ? p.id : 'x'; }
   function favs() { return Store.get('fav_' + pid(), { live: [], vod: [], series: [] }); }
   function isFav(kind, id) { var f = favs()[kind]; for (var i = 0; i < f.length; i++) if (f[i].id === id) return true; return false; }
@@ -726,6 +735,9 @@
     box.appendChild(setRow('📡 Formato da TV ao vivo', { auto: 'Automático', m3u8: 'HLS (m3u8)', ts: 'MPEG-TS (ts)' }[fmt], function () {
       var o = ['auto', 'm3u8', 'ts'], n = o[(o.indexOf(fmt) + 1) % 3]; Store.set('fmt', n); renderSettings(); Nav.focus($('setList').children[2]);
     }));
+    box.appendChild(setRow('📱 Modo de navegação', uiMode() === 'phone' ? 'Celular (rolagem/toque)' : 'TV (controle remoto)', function () {
+      toggleMode(); renderSettings(); var i = 3; Nav.focus($('setList').children[i] || $('setList').firstChild);
+    }));
     box.appendChild(setRow('🎞️ Player', Player.isAV ? 'Samsung AVPlay' : 'HTML5', function () {}));
     if (inf && inf.user_info) {
       var u = inf.user_info, ed = u.exp_date && u.exp_date !== 'null' ? new Date(Number(u.exp_date) * 1000).toLocaleDateString('pt-BR') : 'Sem vencimento';
@@ -1003,6 +1015,7 @@
   }
 
   /* ───────── Início ───────── */
+  applyMode();
   function autoLogin() {
     var act = Store.get('active', null), ap = null;
     for (var i = 0; i < profiles.length; i++) if (profiles[i].id === act) ap = profiles[i];
