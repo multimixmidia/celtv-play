@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Celtv Play</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="img/logo.svg">
+</head>
+<body>
+
+<!-- LOGIN / CONTAS -->
+<section id="s-login" class="screen hidden">
+  <div class="top"><img class="brandwm" src="img/wordmark.png" alt="Celtv Play"><div class="sp"></div><div class="clock"></div></div>
+  <div class="login">
+    <div class="loginBox">
+      <div class="tabs">
+        <div class="tab f on" id="tabX">🔐 Usuário e senha</div>
+        <div class="tab f" id="tabM">📄 Lista M3U</div>
+      </div>
+      <div id="formX">
+        <div class="field f"><label>Nome da lista (opcional)</label><input id="xName" type="text" placeholder="Minha TV"></div>
+        <div class="field f"><label>URL do servidor</label><input id="xServer" type="url" placeholder="http://servidor.com:8080"></div>
+        <div class="field f"><label>Usuário</label><input id="xUser" type="text" autocapitalize="off" autocorrect="off"></div>
+        <div class="field f"><label>Senha</label><input id="xPass" type="password"></div>
+      </div>
+      <div id="formM" class="hidden">
+        <div class="field f"><label>Nome da lista (opcional)</label><input id="mName" type="text" placeholder="Minha lista"></div>
+        <div class="field f"><label>URL da lista M3U</label><input id="mUrl" type="url" placeholder="http://.../lista.m3u"></div>
+        <div class="field f"><label>…ou cole o conteúdo da lista M3U aqui</label><textarea id="mText" placeholder="#EXTM3U"></textarea></div>
+      </div>
+      <div class="btn primary f" id="btnLogin" style="width:100%">Entrar</div>
+      <div class="msg" id="loginMsg"></div>
+      <div class="btn f" id="btnRcvLogin" style="width:100%;margin-top:.8rem">📲 Só receber arquivos do celular</div>
+    </div>
+    <div class="profiles" id="profBox">
+      <h3>Listas salvas</h3>
+      <div id="profList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOME (estilo streaming) -->
+<section id="s-home" class="screen home hidden">
+  <div class="nav">
+    <img class="navwm" src="img/wordmark.png" alt="Celtv Play">
+    <div class="menu">
+      <div class="mi f sel" data-go="home">Início</div>
+      <div class="mi f" data-go="live">Canais</div>
+      <div class="mi f" data-go="vod">Filmes</div>
+      <div class="mi f" data-go="series">Séries</div>
+      <div class="mi f" data-go="search">Buscar</div>
+    </div>
+    <div class="navsp"></div>
+    <div class="nicon f" data-go="reload" title="Atualizar">⟳</div>
+    <div class="nicon f" data-go="receive" title="Receber do celular">📲</div>
+    <div class="nicon f" data-go="msgs" title="Mensagens">💬<span class="nbadge hidden" id="msgBadge"></span></div>
+    <div class="nicon f" data-go="settings" title="Configurações">⚙</div>
+    <div class="acct f" data-go="settings"><div class="av" id="acctAv">·</div><div class="acctxt"><div class="acode" id="acctName"></div><div class="aexp" id="acctExp"></div></div></div>
+  </div>
+  <div class="homescroll scroll" id="homeScroll">
+    <div class="hero" id="hero">
+      <div class="herobg" id="heroBg"></div>
+      <div class="herofade"></div>
+      <div class="heroinfo">
+        <div class="htitle" id="heroTitle">Celtv Play</div>
+        <div class="htags" id="heroTags"></div>
+        <div class="hplot" id="heroPlot"></div>
+        <div class="hbtns"><a class="btn primary f" id="heroBtn">▶ Assistir</a></div>
+      </div>
+      <div class="dots" id="heroDots"></div>
+    </div>
+    <div id="homeRows"></div>
+  </div>
+</section>
+
+<!-- TV AO VIVO -->
+<section id="s-live" class="screen hidden">
+  <div class="top"><h2>📺 TV ao Vivo</h2><div class="sp"></div><div class="clock"></div></div>
+  <div class="cols">
+    <div class="col cats"><div class="ch">Categorias</div><div class="scroll" id="liveCats"></div></div>
+    <div class="col chans"><div class="ch" id="liveChHead">Canais</div><div class="scroll" id="liveList"></div></div>
+    <div class="col prev">
+      <div class="pbox" id="liveBox">Selecione um canal</div>
+      <div class="ptitle" id="liveTitle"></div>
+      <div class="epg"><div class="now" id="liveNow"></div><div class="nx" id="liveNext"></div><div class="bar"><i id="liveBar"></i></div></div>
+      <div class="pbtns">
+        <div class="btn primary f" id="liveFull">⛶ Tela cheia</div>
+        <div class="btn f" id="liveFav">⭐ Favoritar</div>
+      </div>
+      <div class="hint">OK no canal = prévia · OK de novo = tela cheia · ▲▼ trocar canal na tela cheia</div>
+    </div>
+  </div>
+</section>
+
+<!-- FILMES / SÉRIES (grade) -->
+<section id="s-grid" class="screen hidden">
+  <div class="top"><h2 id="gridTitle">🎬 Filmes</h2><div class="sp"></div><div class="pill" id="gridCount"></div><div class="clock"></div></div>
+  <div class="cols">
+    <div class="col cats"><div class="ch">Categorias</div><div class="scroll" id="gridCats"></div></div>
+    <div class="col gridWrap"><div class="scroll" id="gridScroll"><div class="grid" id="grid"></div></div></div>
+  </div>
+</section>
+
+<!-- DETALHE -->
+<section id="s-detail" class="screen hidden">
+  <div class="top"><h2 id="detHead">Detalhes</h2><div class="sp"></div><div class="clock"></div></div>
+  <div class="detail">
+    <div class="dposter" id="detPoster"></div>
+    <div class="dinfo">
+      <div class="dtitle" id="detTitle"></div>
+      <div class="dmeta" id="detMeta"></div>
+      <div class="dplot" id="detPlot"></div>
+      <div class="pbtns" id="detBtns"></div>
+      <div class="seasons navgroup" id="detSeasons"></div>
+      <div class="eps hidden" id="detEpsBox"><div class="scroll" id="detEps" style="height:100%"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- BUSCA -->
+<section id="s-search" class="screen hidden">
+  <div class="top"><h2>🔍 Buscar</h2><div class="sp"></div><div class="clock"></div></div>
+  <div class="searchBar"><div class="field f" id="qWrap"><label>Digite o nome do canal, filme ou série</label><input id="q" type="text"></div></div>
+  <div class="scroll sres" id="sRes"></div>
+</section>
+
+<!-- LISTA SIMPLES (favoritos / recentes) -->
+<section id="s-list" class="screen hidden">
+  <div class="top"><h2 id="listTitle"></h2><div class="sp"></div><div class="clock"></div></div>
+  <div class="scroll sres" id="listRes"></div>
+</section>
+
+<!-- CONFIGURAÇÕES -->
+<section id="s-settings" class="screen hidden">
+  <div class="top"><h2>⚙️ Configurações</h2><div class="sp"></div><div class="clock"></div></div>
+  <div class="setList" id="setList"></div>
+</section>
+
+<!-- RECEBER DO CELULAR -->
+<section id="s-receive" class="screen hidden">
+  <div class="top"><h2>📲 Receber do celular</h2><div class="sp"></div><div class="pill" id="rcvNet">Conectando…</div><div class="clock"></div></div>
+  <div class="cols">
+    <div class="col cats"><div class="ch">Pastas</div><div class="scroll" id="rcvFolders"></div></div>
+    <div class="col chans"><div class="ch" id="rcvHead">Arquivos</div><div class="scroll" id="rcvList"></div></div>
+    <div class="col prev">
+      <div id="rcvPin" class="rcvPin">
+        <div class="pl">Aponte a câmera do celular para o código</div>
+        <div class="rcvQr" id="rcvQr"></div>
+        <div class="pl">ou abra <b id="rcvUrl"></b> e digite o PIN</div>
+        <div class="pp" id="rcvPinNum">----</div>
+      </div>
+      <div id="rcvPrev" class="hidden">
+        <div class="pbox" id="rcvBox"></div>
+        <div class="ptitle" id="rcvTitle"></div>
+        <div class="epg"><div class="now" id="rcvMeta"></div><div class="nx" id="rcvTip"></div></div>
+        <div class="pbtns" id="rcvBtns"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MENSAGENS / SUPORTE -->
+<section id="s-msgs" class="screen hidden">
+  <div class="top"><h2>💬 Mensagens</h2><div class="sp"></div><div class="pill" id="msgsCode"></div><div class="clock"></div></div>
+  <div class="cols">
+    <div class="col" style="flex:1">
+      <div class="ch">Avisos recebidos</div>
+      <div class="scroll" id="msgsList"></div>
+    </div>
+    <div class="col" style="width:30rem">
+      <div class="ch">Precisa de ajuda?</div>
+      <div class="scroll" id="supBox" style="padding:.4rem"></div>
+    </div>
+  </div>
+</section>
+
+<!-- PLAYER TELA CHEIA -->
+<div id="fsOverlay" class="hidden">
+  <div id="fsVideoHost"></div>
+  <div class="spinner hidden" id="fsSpin"></div>
+  <div class="osd" id="osd">
+    <div class="on1"><div class="onum" id="oNum"></div><div class="olg" id="oLogo"></div><div class="oname" id="oName"></div></div>
+    <div class="oepg" id="oNow"></div>
+    <div class="onext" id="oNext"></div>
+    <div class="oprog"><i id="oBar"></i></div>
+    <div class="otime"><span id="oT1"></span><span id="oT2"></span></div>
+    <div class="ohint" id="oHint"></div>
+  </div>
+</div>
+
+<div id="loading" class="hidden"><div class="spinner"></div><div id="loadingTxt">Carregando…</div></div>
+<div id="msgBanner" class="hidden" aria-live="polite"></div>
+<div id="toast"></div>
+
+<object id="av-player" type="application/avplayer" style="position:absolute;left:0;top:0;width:0;height:0;z-index:-1"></object>
+
+<script src="js/vendor/qrcode.js"></script>
+<script src="js/vendor/hls.min.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/api.js"></script>
+<script src="js/player.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
