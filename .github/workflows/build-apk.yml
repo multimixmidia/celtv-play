@@ -4,6 +4,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,17 +24,23 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build APKs
-        run: gradle assembleDebug assembleRelease --no-daemon --stacktrace
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Publicar APK (debug)
+      - name: Preparar APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/CeltvPlay.apk
+
+      - name: Publicar Release (link fixo)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app
+          name: Celtv Play (APK)
+          files: dist/CeltvPlay.apk
+
+      - name: Artifact (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: CeltvPlay-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-
-      - name: Publicar APK (release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: CeltvPlay-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: CeltvPlay-apk
+          path: dist/CeltvPlay.apk
