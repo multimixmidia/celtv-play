@@ -30,7 +30,13 @@
   }
   function profBackup() { if (!cloudOn()) return; try { cloudRpc('celtv_prof_save', { p_duid: deviceId(), p_prof: profiles }, function () {}); } catch (e) {} }
   /* ── Modo de navegação: tv (controle) ou phone (rolagem/toque) ── */
-  function defaultMode() { var p = msgPlat(); return (p === 'tizen' || p === 'webos' || p === 'androidtv') ? 'tv' : 'phone'; }
+  function hasTouch() { try { return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0); } catch (e) { return false; } }
+  function defaultMode() {
+    var p = msgPlat();
+    if (p === 'tizen' || p === 'webos') return 'tv';   // Smart TV = controle
+    if (hasTouch()) return 'phone';                    // tem toque (celular/tablet) = rolagem
+    return 'tv';                                        // TV box / PC sem toque = controle
+  }
   function uiMode() { return Store.get('uimode', defaultMode()); }
   function applyMode() {
     var on = (uiMode() === 'phone');
