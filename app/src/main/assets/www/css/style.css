@@ -330,3 +330,36 @@ body.phone .lcard{width:8.5rem;height:5.2rem}
 body.phone .seeall{width:9rem;height:13.5rem}
 /* detalhe */
 body.phone .dtitle{font-size:1.6rem}
+
+/* ── v3: listas compactas no celular + gerenciador de listas ── */
+.setHead{font-size:.85rem;color:#8b95a7;text-transform:uppercase;letter-spacing:.1rem;padding:1rem .4rem .4rem}
+html.phone{font-size:min(calc(100vw / 34), 18px)}
+/* categorias viram "chips" horizontais */
+body.phone .col.cats{width:auto;max-height:none;padding:.4rem;flex:none}
+body.phone .col.cats .ch{display:none}
+body.phone .col.cats .scroll{display:flex;gap:.5rem;overflow-x:auto;overflow-y:hidden;max-height:none;padding-bottom:.2rem;-webkit-overflow-scrolling:touch}
+body.phone .cat{flex:none;margin:0;padding:.55rem .9rem;border-radius:2rem;background:#121a2a;font-size:1.2rem}
+body.phone .cat .n{margin-left:.5rem}
+body.phone .cat.sel{background:#1f6feb;color:#fff}
+body.phone .cat.sel .n{color:#dbe7ff}
+/* lista de canais ocupa a tela e rola com a página */
+body.phone .col.chans{width:auto;flex:none;padding:.4rem}
+body.phone .col.chans .scroll{max-height:none;overflow:visible}
+body.phone #s-live .col.prev{display:none}
+body.phone .chan{padding:.55rem .6rem;gap:.8rem;margin-bottom:.1rem}
+body.phone .chan .num{width:2.4rem;font-size:1.05rem}
+body.phone .chan .lg{width:3.8rem;height:2.4rem}
+body.phone .chan .nm{font-size:1.3rem}
+/* filmes/séries: 3 colunas, cards menores */
+body.phone .gridWrap{width:auto;flex:none;padding:.4rem}
+body.phone .grid{grid-template-columns:repeat(3,1fr);gap:.6rem;padding:0}
+body.phone .card .cn{font-size:1.1rem;padding:.4rem .5rem}
+/* topo das telas e config */
+body.phone .top h2{font-size:1.7rem}
+body.phone .clock{font-size:1.3rem}
+body.phone .setRow{font-size:1.3rem;padding:.9rem 1rem}
+body.phone .htitle{font-size:2.6rem}
+body.phone .hplot{font-size:1.3rem}
+body.phone .mi{font-size:1.35rem}
+body.phone .nicon{width:2.8rem;height:2.8rem;font-size:1.3rem}
+body.phone .navwm,body.phone .brandwm{height:2.4rem}

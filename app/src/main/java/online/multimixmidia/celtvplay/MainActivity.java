@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.provider.Settings;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -36,11 +38,25 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
 
+        web.addJavascriptInterface(new Bridge(), "AndroidApp");
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient());
         web.setBackgroundColor(0xFF06080D);
         setContentView(web);
         web.loadUrl("file:///android_asset/www/index.html");
+    }
+
+    // Ponte JS: window.AndroidApp.exit() / deviceId()
+    public class Bridge {
+        @JavascriptInterface
+        public void exit() {
+            runOnUiThread(new Runnable() { public void run() { finishAndRemoveTask(); } });
+        }
+        @JavascriptInterface
+        public String deviceId() {
+            try { return "a" + Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID); }
+            catch (Exception e) { return ""; }
+        }
     }
 
     // Envia as teclas do controle (TV) para o app via window.cpKey(code)

@@ -90,6 +90,14 @@
     if (prev.focusEl && prev.focusEl.offsetParent !== null) Nav.focus(prev.focusEl); else Nav.first();
   }
   var exitT = 0;
+  function exitApp() {
+    try { Player.stop(); } catch (e) {}
+    if (window.AndroidApp && AndroidApp.exit) { AndroidApp.exit(); return; }
+    try { tizen.application.getCurrentApplication().exit(); return; } catch (e) {}
+    try { webOS.platformBack(); return; } catch (e) {}
+    try { window.close(); } catch (e) {}
+    toast('Feche pelo botão Home do aparelho');
+  }
   function exitAsk() {
     if (Date.now() - exitT < 2500) { if (window.AndroidApp) { AndroidApp.exit(); return; } try { tizen.application.getCurrentApplication().exit(); } catch (e) { try { window.close(); } catch (e2) {} } return; }
     exitT = Date.now(); toast('Pressione Voltar de novo para sair');
@@ -109,6 +117,9 @@
     more();
     var scroller = box.className.indexOf('scroll') >= 0 ? box : box.parentNode;
     scroller.scrollTop = 0;
+    function onSc() { if (n >= items.length || !box.offsetParent) return; var r = box.getBoundingClientRect(); if (r.bottom < window.innerHeight + 900) more(); }
+    if (box._sc) { window.removeEventListener('scroll', box._sc); scroller.removeEventListener('scroll', box._sc); }
+    box._sc = onSc; window.addEventListener('scroll', onSc, { passive: true }); scroller.addEventListener('scroll', onSc, { passive: true });
     return { more: more };
   }
 
@@ -284,6 +295,7 @@
     else if (w === 'recent') go('list', 'recent');
     else if (w === 'search') need(['live', 'vod', 'series'], function () { go('search'); });
     else if (w === 'settings') go('settings');
+    else if (w === 'exit') exitApp();
     else if (w === 'reload') { var p = Api.profile(); useProfile(p); }
     else if (w === 'receive') go('receive');
     else if (w === 'msgs') go('msgs');
@@ -333,7 +345,7 @@
     e.appendChild(el('div', 'nm', it.name));
     if (isFav('live', it.id)) e.appendChild(el('div', 'st', '★'));
     e._item = it; e._idx = i;
-    e._onEnter = function () { if (L.prev && L.prev.id === it.id && Player.url()) fullscreen('live', it, L.items, i); else preview(it, i); };
+    e._onEnter = function () { if (uiMode() === 'phone' || (L.prev && L.prev.id === it.id && Player.url())) fullscreen('live', it, L.items, i); else preview(it, i); };
     return e;
   }
   function preview(it, i) {
@@ -733,16 +745,22 @@
   /* ───────── CONFIGURAÇÕES ───────── */
   SCR.settings = { enter: renderSettings, resume: renderSettings };
   function setRow(label, val, fn) { var r = el('div', 'setRow f'); r.appendChild(el('span', '', label)); r.appendChild(el('span', 'v', val)); r._onEnter = fn; return r; }
+  function focusRow(t) { var r = [].slice.call($('setList').querySelectorAll('.setRow')); for (var i = 0; i < r.length; i++) if (r[i].textContent.indexOf(t) >= 0) return Nav.focus(r[i]); Nav.first(); }
   function renderSettings() {
     var box = $('setList'); box.innerHTML = '';
     var p = Api.profile(), inf = Api.info(), fmt = Store.get('fmt', 'auto');
-    box.appendChild(setRow('📋 Lista atual', p.name, function () { go('login'); }));
-    box.appendChild(setRow('➕ Adicionar / trocar lista', '›', function () { go('login'); }));
+    box.appendChild(el('div', 'setHead', '📋 Minhas listas (' + profiles.length + ')'));
+    profiles.forEach(function (q) {
+      var on = p && q.id === p.id;
+      var tipo = q.type === 'xtream' ? 'Usuário/senha' : (q.m3uUrl ? 'M3U (link)' : 'M3U (colada)');
+      box.appendChild(setRow((on ? '✅ ' : '📄 ') + q.name, on ? 'em uso' : tipo + ' · usar ›', function () { if (!on) useProfile(q); }));
+    });
+    box.appendChild(setRow('➕ Adicionar nova lista (M3U ou usuário/senha)', '›', function () { go('login'); }));
     box.appendChild(setRow('📡 Formato da TV ao vivo', { auto: 'Automático', m3u8: 'HLS (m3u8)', ts: 'MPEG-TS (ts)' }[fmt], function () {
-      var o = ['auto', 'm3u8', 'ts'], n = o[(o.indexOf(fmt) + 1) % 3]; Store.set('fmt', n); renderSettings(); Nav.focus($('setList').children[2]);
+      var o = ['auto', 'm3u8', 'ts'], n = o[(o.indexOf(fmt) + 1) % 3]; Store.set('fmt', n); renderSettings(); focusRow('Formato');
     }));
     box.appendChild(setRow('📱 Modo de navegação', uiMode() === 'phone' ? 'Celular (rolagem/toque)' : 'TV (controle remoto)', function () {
-      toggleMode(); renderSettings(); var i = 3; Nav.focus($('setList').children[i] || $('setList').firstChild);
+      toggleMode(); renderSettings(); focusRow('Modo de nave');
     }));
     box.appendChild(setRow('🎞️ Player', Player.isAV ? 'Samsung AVPlay' : 'HTML5', function () {}));
     if (inf && inf.user_info) {
@@ -758,6 +776,7 @@
     box.appendChild(setRow('🔄 Atualizar a lista (recarregar do servidor)', '›', function () { useProfile(Api.profile()); }));
     box.appendChild(setRow('📱 Código deste aparelho (para o suporte)', MSG.code || '—', function () {}));
     box.appendChild(setRow('ℹ️ Celtv Play', 'versão 1.0', function () {}));
+    box.appendChild(setRow('🚪 Sair do app', '›', exitApp));
     if (!Nav.current() || Nav.current().offsetParent === null) Nav.focus(box.firstChild);
   }
 
