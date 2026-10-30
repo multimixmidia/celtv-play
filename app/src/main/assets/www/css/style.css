@@ -363,3 +363,19 @@ body.phone .hplot{font-size:1.3rem}
 body.phone .mi{font-size:1.35rem}
 body.phone .nicon{width:2.8rem;height:2.8rem;font-size:1.3rem}
 body.phone .navwm,body.phone .brandwm{height:2.4rem}
+
+/* botão sair + controles por toque */
+.nexit{display:flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:2rem;background:rgba(255,255,255,.08);color:#ffb4b4;font-weight:700;font-size:1.05rem;cursor:pointer;white-space:nowrap}
+.nexit.focus{background:#5b1d24;color:#fff}
+body.phone .nexit{font-size:1.25rem;padding:.6rem 1rem}
+.tbar{display:none}
+body.phone .tbar{display:flex;justify-content:center;align-items:center;gap:.8rem;margin-top:1.2rem;flex-wrap:wrap}
+.tb{background:rgba(255,255,255,.14);color:#fff;border-radius:2rem;padding:.8rem 1.2rem;font-size:1.3rem;font-weight:700;cursor:pointer;user-select:none}
+.tb.big{font-size:1.8rem;padding:.7rem 1.6rem;background:#1f6feb}
+.tb:active{background:#1f6feb}
+#fsOverlay[data-kind="live"] .tv{display:none}
+#fsOverlay:not([data-kind="live"]) .tl{display:none}
+body.phone .osd{padding:1.4rem 1rem 1.6rem}
+body.phone .ohint{display:none}
+body.phone .oprog{height:.8rem;cursor:pointer}
+body.phone #toast{bottom:auto;top:1.5rem;font-size:1.2rem}

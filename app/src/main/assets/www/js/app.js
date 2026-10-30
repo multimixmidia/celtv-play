@@ -529,7 +529,7 @@
   var FS = { open: false, kind: null, item: null, list: null, idx: 0, ep: null, osdT: null, posT: null, prevScreen: null };
   function fullscreen(kind, item, list, idx, o) {
     o = o || {};
-    FS.open = true; FS.kind = kind; FS.item = item; FS.list = list; FS.idx = idx; FS.ep = o.ep || null; FS.seasonN = o.seasonN;
+    FS.open = true; FS.kind = kind; $('fsOverlay').setAttribute('data-kind', kind); FS.item = item; FS.list = list; FS.idx = idx; FS.ep = o.ep || null; FS.seasonN = o.seasonN;
     FS.prevScreen = current; section(current).className = 'screen hidden';
     $('fsOverlay').className = '';
     var host = $('fsVideoHost');
@@ -574,6 +574,7 @@
     $('oHint').textContent = live ? '▲▼ / CH± trocar canal · OK info · 🔴 favorito · Voltar sair' : 'OK pausar/continuar · ◀ ▶ voltar/avançar 10s · Voltar sair';
     if (live) { $('oT1').textContent = ''; $('oT2').textContent = ''; loadEpg(it, { now: $('oNow'), next: $('oNext'), bar: $('oBar') }); }
     else { $('oNow').textContent = ''; $('oNext').textContent = ''; updTime(); }
+    $('fsOverlay').setAttribute('data-kind', FS.kind);
     $('osd').className = 'osd';
     clearTimeout(FS.osdT);
     if (!stay) FS.osdT = setTimeout(function () { if (!Player.paused()) $('osd').className = 'osd off'; }, 5000);
@@ -617,6 +618,24 @@
     if (target) Nav.focus(target);
     loadEpg(it);
   }
+  /* ── controles por toque no player ── */
+  (function () {
+    var ov = $('fsOverlay'), bar = $('tBar');
+    var map = { close: KEY.BACK, rw: KEY.LEFT, ff: KEY.RIGHT, pp: KEY.ENTER, prev: KEY.UP, next: KEY.DOWN };
+    [].forEach.call(bar.querySelectorAll('.tb'), function (b) {
+      b.addEventListener('click', function (e) { e.stopPropagation(); var k = b.getAttribute('data-k'); if (FS.kind === 'coll' && (k === 'rw' || k === 'ff')) k = k === 'rw' ? 'prev2' : 'next2'; fsKey(k === 'prev2' ? KEY.LEFT : k === 'next2' ? KEY.RIGHT : map[k]); });
+    });
+    $('oBar').parentNode.addEventListener('click', function (e) {
+      e.stopPropagation(); if (!FS.open || FS.kind === 'live') return;
+      var r = this.getBoundingClientRect(), t = Player.time(); if (!t.dur) return;
+      Player.seek((e.clientX - r.left) / r.width * t.dur - t.cur); osd();
+    });
+    ov.addEventListener('click', function () {
+      if (!FS.open) return;
+      if ($('osd').className.indexOf('off') >= 0) { if (FS.kind === 'coll') collOsd(); else if (FS.kind === 'image') showFsImage(); else osd(); }
+      else { clearTimeout(FS.osdT); $('osd').className = 'osd off'; }
+    });
+  })();
   function fsKey(k) {
     if (k === KEY.BACK || k === KEY.BACK_LG || k === KEY.ESC || k === KEY.BACKSPACE || k === KEY.STOP) return exitFs();
     if (FS.kind === 'coll') {
@@ -644,7 +663,7 @@
   function collInterval() { var v = Store.get('slide', 5000); return v === 10000 ? 10000 : 5000; }
   function startColl(items, idx) {
     if (!items || !items.length) return;
-    FS.open = true; FS.kind = 'coll'; FS.coll = { items: items, paused: false }; FS.idx = idx || 0;
+    FS.open = true; FS.kind = 'coll'; $('fsOverlay').setAttribute('data-kind','coll'); FS.coll = { items: items, paused: false }; FS.idx = idx || 0;
     FS.prevScreen = current; section(current).className = 'screen hidden';
     $('fsOverlay').className = '';
     collShow(FS.idx);
