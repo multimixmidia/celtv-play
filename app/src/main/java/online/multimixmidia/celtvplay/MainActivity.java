@@ -1,12 +1,9 @@
 package online.multimixmidia.celtvplay;
 
 import android.app.Activity;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
-import android.view.View;
 import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -19,6 +16,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -26,57 +24,50 @@ public class MainActivity extends Activity {
         s.setDatabaseEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(true);
-        s.setAllowFileAccessFromFileURLs(true);
-        s.setAllowUniversalAccessFromFileURLs(true); // libera acesso aos servidores IPTV (sem bloqueio CORS)
-        s.setLoadWithOverviewMode(true);
+        s.setAllowContentAccess(true);
+        try { s.setAllowUniversalAccessFromFileURLs(true); } catch (Exception e) {}
+        try { s.setAllowFileAccessFromFileURLs(true); } catch (Exception e) {}
+        // Responsivo: respeita <meta viewport> (width=device-width)
         s.setUseWideViewPort(true);
-        if (Build.VERSION.SDK_INT >= 21) s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        web.setBackgroundColor(0xFF06080D);
+        s.setLoadWithOverviewMode(true);
+        // IGNORA o tamanho de fonte/zoom do sistema Android (evita ficar "grande")
+        s.setTextZoom(100);
+        s.setSupportZoom(false);
+        s.setBuiltInZoomControls(false);
+        s.setDisplayZoomControls(false);
+
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient());
-        web.addJavascriptInterface(new Bridge(), "AndroidApp");
-        web.setFocusable(true);
-        web.setFocusableInTouchMode(true);
+        web.setBackgroundColor(0xFF06080D);
         setContentView(web);
-        hideBars();
         web.loadUrl("file:///android_asset/www/index.html");
-        web.requestFocus();
     }
 
-    private void hideBars() {
-        web.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-    }
-
-    private void js(int code) { web.evaluateJavascript("window.cpKey&&window.cpKey(" + code + ")", null); }
-
+    // Envia as teclas do controle (TV) para o app via window.cpKey(code)
     @Override
-    public boolean dispatchKeyEvent(KeyEvent e) {
-        if (e.getAction() != KeyEvent.ACTION_DOWN) {
-            int k = e.getKeyCode();
-            if (k == KeyEvent.KEYCODE_BACK || k == KeyEvent.KEYCODE_CHANNEL_UP || k == KeyEvent.KEYCODE_CHANNEL_DOWN
-                    || k == KeyEvent.KEYCODE_PROG_RED || k == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) return true;
-            return super.dispatchKeyEvent(e);
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN && web != null) {
+            int js = mapKey(event.getKeyCode());
+            if (js != 0) {
+                web.evaluateJavascript("window.cpKey && window.cpKey(" + js + ")", null);
+                return true;
+            }
         }
-        switch (e.getKeyCode()) {
-            case KeyEvent.KEYCODE_BACK: js(10009); return true;
-            case KeyEvent.KEYCODE_CHANNEL_UP: js(427); return true;
-            case KeyEvent.KEYCODE_CHANNEL_DOWN: js(428); return true;
-            case KeyEvent.KEYCODE_PROG_RED: js(403); return true;
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: js(10252); return true;
-            case KeyEvent.KEYCODE_DPAD_CENTER: js(13); return true;
-        }
-        return super.dispatchKeyEvent(e);
+        return super.dispatchKeyEvent(event);
     }
 
-    @Override
-    protected void onResume() { super.onResume(); hideBars(); web.onResume(); }
-
-    @Override
-    protected void onPause() { web.onPause(); super.onPause(); }
-
-    class Bridge {
-        @JavascriptInterface
-        public void exit() { runOnUiThread(new Runnable() { public void run() { finish(); } }); }
+    private int mapKey(int k) {
+        switch (k) {
+            case KeyEvent.KEYCODE_DPAD_LEFT:  return 37;
+            case KeyEvent.KEYCODE_DPAD_UP:    return 38;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return 39;
+            case KeyEvent.KEYCODE_DPAD_DOWN:  return 40;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:      return 13;
+            case KeyEvent.KEYCODE_BACK:       return 10009;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return 10252;
+            case KeyEvent.KEYCODE_MEDIA_STOP: return 413;
+            default: return 0;
+        }
     }
 }
