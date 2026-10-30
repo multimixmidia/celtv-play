@@ -379,3 +379,4 @@ body.phone .osd{padding:1.4rem 1rem 1.6rem}
 body.phone .ohint{display:none}
 body.phone .oprog{height:.8rem;cursor:pointer}
 body.phone #toast{bottom:auto;top:1.5rem;font-size:1.2rem}
+body.phone #fsOverlay,body.phone #fsOverlay *{pointer-events:auto}
