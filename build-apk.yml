@@ -24,13 +24,21 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Chave de assinatura
+        run: echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > "${{ github.workspace }}/celtv.keystore"
+
+      - name: Build APK assinado
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/celtv.keystore
+          KEYSTORE_PASS: celtvplay
+          KEY_ALIAS: celtv
+          KEY_PASS: celtvplay
+        run: gradle assembleRelease --no-daemon --stacktrace -PverCode=${{ github.run_number }} -PverName=1.${{ github.run_number }}
 
       - name: Preparar APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/CeltvPlay.apk
+          cp app/build/outputs/apk/release/app-release.apk dist/CeltvPlay.apk
 
       - name: Publicar Release (link fixo)
         uses: softprops/action-gh-release@v2

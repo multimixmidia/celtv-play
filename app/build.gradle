@@ -6,9 +6,19 @@ android {
         applicationId 'online.multimixmidia.celtvplay'
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode (project.hasProperty('verCode') ? project.verCode.toInteger() : 1)
+        versionName (project.hasProperty('verName') ? project.verName.toString() : '1.0')
     }
-    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.debug } }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KEYSTORE_PATH') ?: 'celtv.keystore')
+            storePassword System.getenv('KEYSTORE_PASS') ?: 'celtvplay'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'celtv'
+            keyPassword System.getenv('KEY_PASS') ?: 'celtvplay'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
 }

@@ -5,3 +5,6 @@ local.properties
 *.iml
 .idea/
 .DS_Store
+celtv.keystore
+*.keystore
+KEYSTORE_B64.txt
