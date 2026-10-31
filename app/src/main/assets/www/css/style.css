@@ -382,3 +382,15 @@ body.phone #toast{bottom:auto;top:1.5rem;font-size:1.2rem}
 body.phone #fsOverlay,body.phone #fsOverlay *{pointer-events:auto}
 #toast{pointer-events:none}
 #msgBanner.hidden,#loading.hidden{pointer-events:none}
+.atdTopo{display:flex;align-items:center;gap:.6rem;padding:.2rem .4rem .6rem}
+.atdEmp{font-size:1.15rem;font-weight:700;flex:1}
+.atdSt{font-size:.85rem;color:#8b95a7}
+.atdLista{height:18rem;overflow-y:auto;background:#0d1320;border-radius:.8rem;padding:.7rem;margin-bottom:.8rem}
+.atdMsg{max-width:88%;padding:.6rem .8rem;border-radius:.8rem;margin-bottom:.5rem;font-size:1rem;line-height:1.35}
+.atdMsg.cliente{margin-left:auto;background:#1f6feb;color:#fff}
+.atdMsg.ia{background:#1b2537}
+.atdMsg.atendente{background:#1b2537;box-shadow:inset .3rem 0 0 #22c55e}
+.atdTxt{white-space:pre-wrap;word-wrap:break-word}
+.atdHora{font-size:.75rem;opacity:.7;margin-top:.25rem}
+.supBtn.atdSair{text-align:center;font-size:.9rem;color:#8b95a7}
+.supNote.atdSep{text-align:center;padding-top:1rem}

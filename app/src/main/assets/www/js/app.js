@@ -959,7 +959,9 @@
   }
   function msgRead() { return Store.get("msg_read", 0); }
   window.celtvPoll = function(){ msgPoll(); };
-  function setBadge(n) { var b = $('msgBadge'); if (!b) return; if (n > 0) { b.textContent = n > 99 ? '99' : n; b.className = 'nbadge'; } else b.className = 'nbadge hidden'; }
+  var badgeAvisos = 0;
+  function setBadge(n) { badgeAvisos = n; updBadge(); }
+  function updBadge() { var b = $('msgBadge'); if (!b) return; var n = badgeAvisos + atdNaoLidas(); if (n > 0) { b.textContent = n > 99 ? '99' : n; b.className = 'nbadge'; } else b.className = 'nbadge hidden'; }
   function msgPoll() {
     if (!MSG.code) return;
     cloudRpc('celtv_msg_poll', { p_code: MSG.code }, function (err, list) {
@@ -987,6 +989,7 @@
       $('msgsCode').textContent = MSG.code ? ('Código: ' + MSG.code) : '';
       renderMsgs(); renderSup();
       if (MSG.list.length) { Store.set('msg_read', MSG.list[0].id); setBadge(0); }
+      atdMarcarLido(); atdAgendar();
       var f = $('msgsList').firstChild;
       Nav.focus(f && /\bf\b/.test(f.className || '') ? f : $('supBox').querySelector('.f'));
     }
@@ -1005,6 +1008,7 @@
   var supSel = null;
   function renderSup() {
     var box = $('supBox'); box.innerHTML = ''; supSel = null;
+    if (atdRender(box)) return;   // conectado ao atendimento: o quadro vira o chat
     box.appendChild(el('div', 'supNote', '1) Escolha o assunto   2) Especifique   3) Enviar'));
     var btns = [];
     function clearSel() { for (var i = 0; i < btns.length; i++) btns[i].className = btns[i].className.replace(/\s*\bsel\b/g, ''); }
@@ -1032,6 +1036,146 @@
       if (err) toast('❌ ' + err.message); else toast('✅ Mensagem enviada');
     });
   }
+
+  /* ───────── Atendimento com o Assistente Força de Vendas (HubMix) ─────────
+     O cliente digita o ID de 8 números que a empresa enviou. O app conecta,
+     fica ONLINE no painel da empresa e conversa com o assistente (IA) e o atendente.
+     API: https://hubmix-assistente.vercel.app/app/v1  (conectar, mensagens, mensagem) */
+  var ATD = {
+    base: 'https://hubmix-assistente.vercel.app/app/v1',
+    id: Store.get('atd_id', null), token: Store.get('atd_tk', null), info: Store.get('atd_info', null),
+    msgs: Store.get('atd_msgs', []), ult: 0, timer: null, ocupado: false
+  };
+  (function () { for (var i = 0; i < ATD.msgs.length; i++) if (ATD.msgs[i].n > ATD.ult) ATD.ult = ATD.msgs[i].n; })();
+  function atdReq(metodo, rota, corpo, cb) {
+    var x = new XMLHttpRequest();
+    x.open(metodo, ATD.base + rota, true);
+    x.setRequestHeader('Content-Type', 'application/json');
+    x.timeout = 25000;
+    x.onload = function () {
+      var j = null; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300) cb(null, j || {}); else cb({ status: x.status, message: (j && j.erro) || ('Erro ' + x.status) });
+    };
+    x.onerror = x.ontimeout = function () { cb({ status: 0, message: 'Sem internet' }); };
+    x.send(corpo ? JSON.stringify(corpo) : null);
+  }
+  function atdNaoLidas() {
+    if (!ATD) return 0;
+    var lido = Store.get('atd_lido', 0), n = 0;
+    for (var i = 0; i < ATD.msgs.length; i++) if (ATD.msgs[i].n > lido && ATD.msgs[i].de !== 'cliente') n++;
+    return n;
+  }
+  function atdMarcarLido() { if (ATD.ult) Store.set('atd_lido', ATD.ult); updBadge(); }
+  function atdGuardar() { Store.set('atd_msgs', ATD.msgs.slice(-80)); }
+  function atdAdd(lista, avisar) {
+    var novas = 0, ultimaResp = null;
+    for (var i = 0; i < (lista || []).length; i++) {
+      var m = lista[i]; if (m.n <= ATD.ult) continue;
+      ATD.msgs.push(m); ATD.ult = m.n; novas++;
+      if (m.de !== 'cliente') ultimaResp = m;
+    }
+    if (!novas) return;
+    atdGuardar();
+    if (current === 'msgs') { atdMarcarLido(); atdDesenhar(); }
+    else { updBadge(); if (avisar && ultimaResp) showBanner({ kind: 'info', title: ultimaResp.de === 'atendente' ? 'Mensagem do atendente' : 'Resposta do atendimento', body: ultimaResp.texto.slice(0, 140) }); }
+  }
+  function atdSair(motivo) {
+    clearTimeout(ATD.timer);
+    ATD.id = ATD.token = ATD.info = null; ATD.msgs = []; ATD.ult = 0;
+    Store.del('atd_id'); Store.del('atd_tk'); Store.del('atd_info'); Store.del('atd_msgs'); Store.del('atd_lido');
+    updBadge();
+    if (motivo) toast(motivo);
+    if (current === 'msgs') renderSup();
+  }
+  // Consulta mensagens: a cada 5 s com a tela aberta, 30 s em segundo plano (mantem ONLINE no painel).
+  function atdAgendar() {
+    clearTimeout(ATD.timer);
+    if (!ATD.token) return;
+    ATD.timer = setTimeout(atdPuxar, current === 'msgs' ? 5000 : 30000);
+  }
+  function atdPuxar() {
+    if (!ATD.token) return;
+    atdReq('GET', '/mensagens?id=' + ATD.id + '&token=' + encodeURIComponent(ATD.token) + '&desde=' + ATD.ult, null, function (err, r) {
+      if (err && err.status === 401) { atdSair('O atendimento foi desconectado. Digite o ID de novo em 💬 Mensagens.'); return; }
+      if (!err) atdAdd(r.msgs, true);
+      var st = $('atdStatus'); if (st) st.textContent = err ? '⚪ sem conexão' : '🟢 online';
+      atdAgendar();
+    });
+  }
+  function atdConectar(id) {
+    id = String(id || '').replace(/\D/g, '');
+    if (id.length !== 8) { toast('O ID tem 8 números'); return; }
+    loading(true, 'Conectando ao atendimento…');
+    atdReq('POST', '/conectar', { id: id, token: ATD.id === id ? ATD.token : undefined }, function (err, r) {
+      loading(false);
+      if (err) { toast('❌ ' + err.message); return; }
+      ATD.id = id; ATD.token = r.token; ATD.info = { empresa: r.empresa, atendente: r.atendente && r.atendente.nome, cliente: r.cliente && r.cliente.nome };
+      Store.set('atd_id', id); Store.set('atd_tk', r.token); Store.set('atd_info', ATD.info);
+      toast('✅ Conectado ao atendimento ' + (r.empresa || ''));
+      renderSup();
+      atdPuxar();
+    });
+  }
+  function atdEnviar(texto) {
+    if (ATD.ocupado) return;
+    ATD.ocupado = true;
+    var st = $('atdStatus'); if (st) st.textContent = '⏳ enviando…';
+    atdReq('POST', '/mensagem', { id: ATD.id, token: ATD.token, texto: texto }, function (err, r) {
+      ATD.ocupado = false;
+      if (err && err.status === 401) { atdSair('O atendimento foi desconectado. Digite o ID de novo.'); return; }
+      if (err) { toast('❌ ' + err.message); if (st) st.textContent = '⚪ sem conexão'; return; }
+      atdAdd(r.msgs, false);
+      if (st) st.textContent = '🟢 online';
+      atdAgendar();
+    });
+  }
+  function atdDesenhar() {
+    var lista = $('atdLista'); if (!lista) return;
+    lista.innerHTML = '';
+    if (!ATD.msgs.length) lista.appendChild(el('div', 'empty', 'Escreva sua primeira mensagem.'));
+    for (var i = 0; i < ATD.msgs.length; i++) {
+      var m = ATD.msgs[i], it = el('div', 'atdMsg ' + m.de);
+      it.appendChild(el('div', 'atdTxt', m.texto));
+      var d = new Date(m.em);
+      it.appendChild(el('div', 'atdHora', (m.de === 'cliente' ? 'Você' : m.de === 'atendente' ? 'Atendente' : 'Assistente') + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes())));
+      lista.appendChild(it);
+    }
+    lista.scrollTop = lista.scrollHeight;
+  }
+  // Desenha o quadro do atendimento. Devolve true quando o chat ocupa o quadro inteiro.
+  function atdRender(box) {
+    if (!ATD.token) {
+      box.appendChild(el('div', 'supNote', '🤝 Tem um ID de atendimento? Digite os 8 números que a empresa enviou:'));
+      var w = el('div', 'field f'); w.innerHTML = '<label>ID do atendimento</label><input id="atdId" type="text" inputmode="numeric" maxlength="8" placeholder="00000000">';
+      box.appendChild(w);
+      var b = el('div', 'supBtn send f', '🔗 Conectar ao atendimento');
+      b._onEnter = function () { atdConectar(($('atdId') || {}).value); };
+      box.appendChild(b);
+      box.appendChild(el('div', 'supNote atdSep', '— ou envie um pedido de suporte —'));
+      return false;
+    }
+    var topo = el('div', 'atdTopo');
+    topo.appendChild(el('div', 'atdEmp', '💬 ' + ((ATD.info && ATD.info.empresa) || 'Atendimento')));
+    var st = el('div', 'atdSt', '🟢 online'); st.id = 'atdStatus'; topo.appendChild(st);
+    box.appendChild(topo);
+    var lista = el('div', 'atdLista scroll'); lista.id = 'atdLista'; box.appendChild(lista);
+    var w2 = el('div', 'field f'); w2.innerHTML = '<label>✍️ Sua mensagem</label><textarea id="atdTexto" placeholder="Escreva aqui…"></textarea>';
+    box.appendChild(w2);
+    var env = el('div', 'supBtn send f', '📨 Enviar');
+    env._onEnter = function () {
+      var t = (($('atdTexto') || {}).value || '').trim();
+      if (!t) { toast('Escreva sua mensagem'); Nav.focus($('atdTexto').parentNode); return; }
+      $('atdTexto').value = '';
+      atdEnviar(t);
+    };
+    box.appendChild(env);
+    var sair = el('div', 'supBtn f atdSair', '↩ Desconectar este ID');
+    sair._onEnter = function () { atdSair('Atendimento desconectado neste aparelho'); };
+    box.appendChild(sair);
+    atdDesenhar();
+    return true;
+  }
+  if (ATD.token) { updBadge(); setTimeout(atdPuxar, 3000); }
 
   /* ───────── Teclado / controle ───────── */
   // Android (WebView) envia teclas especiais por aqui: window.cpKey(10009)
