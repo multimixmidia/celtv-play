@@ -1169,6 +1169,14 @@
       atdEnviar(t);
     };
     box.appendChild(env);
+    var apagar = el('div', 'supBtn f atdSair', '🗑 Apagar conversa');
+    apagar._onEnter = function () {
+      // Confirma com um segundo toque (dialogos nao funcionam bem no controle da TV).
+      if (!apagar._conf) { apagar._conf = true; apagar.textContent = '⚠ Toque de novo para apagar'; setTimeout(function () { apagar._conf = false; apagar.textContent = '🗑 Apagar conversa'; }, 4000); return; }
+      ATD.msgs = []; atdGuardar(); Store.set('atd_lido', ATD.ult); updBadge(); atdDesenhar();
+      toast('Conversa apagada. O atendimento continua conectado.');
+    };
+    box.appendChild(apagar);
     var sair = el('div', 'supBtn f atdSair', '↩ Desconectar este ID');
     sair._onEnter = function () { atdSair('Atendimento desconectado neste aparelho'); };
     box.appendChild(sair);
