@@ -959,7 +959,7 @@
   }
   function msgRead() { return Store.get("msg_read", 0); }
   window.celtvPoll = function(){ msgPoll(); };
-  function setBadge(n) { var b = $('msgBadge'); if (!b) return; if (n > 0) { b.textContent = n > 99 ? '99' : n; b.className = 'nbadge'; } else b.className = 'nbadge hidden'; }
+  function setBadge(n) { badgeAvisos = n; updBadge(); }
   function msgPoll() {
     if (!MSG.code) return;
     cloudRpc('celtv_msg_poll', { p_code: MSG.code }, function (err, list) {
@@ -981,14 +981,13 @@
     b.appendChild(el('div', 'bk', 'Abra 💬 Mensagens para ver'));
     b.className = 'show'; clearTimeout(bannerT); bannerT = setTimeout(function () { b.className = 'hidden'; }, 8000);
   }
-  var SUP_REASONS = ['📶 O sinal / canais caíram', '▶️ Um canal não abre', '➕ Falta um canal ou filme', '🔑 Problema para entrar'];
   SCR.msgs = {
     enter: function () {
       $('msgsCode').textContent = MSG.code ? ('Código: ' + MSG.code) : '';
       renderMsgs(); renderSup();
-      if (MSG.list.length) { Store.set('msg_read', MSG.list[0].id); setBadge(0); }
-      var f = $('msgsList').firstChild;
-      Nav.focus(f && /\bf\b/.test(f.className || '') ? f : $('supBox').querySelector('.f'));
+      if (MSG.list.length) { Store.set('msg_read', MSG.list[0].id); badgeAvisos = 0; }
+      atdMarcarLido();
+      Nav.focus($('supBox').querySelector('.f'));
     }
   };
   function renderMsgs() {
@@ -1023,36 +1022,185 @@
     var c = $('lqClose'); c._onEnter = function () { ov.className = ''; Nav.setScope(null); Nav.first(); };
     Nav.setScope(ov); Nav.focus(c);
   }
-  var supSel = null;
-  function renderSup() {
-    var box = $('supBox'); box.innerHTML = ''; supSel = null;
-    box.appendChild(el('div', 'supNote', '1) Escolha o assunto   2) Especifique   3) Enviar'));
-    var btns = [];
-    function clearSel() { for (var i = 0; i < btns.length; i++) btns[i].className = btns[i].className.replace(/\s*\bsel\b/g, ''); }
-    SUP_REASONS.concat(['💬 Outro assunto']).forEach(function (r) {
-      var b = el('div', 'supBtn f', r);
-      b._onEnter = function () { supSel = r; clearSel(); b.className += ' sel'; Nav.focus($('supText').parentNode); };
-      btns.push(b); box.appendChild(b);
-    });
-    var w = el('div', 'field f'); w.innerHTML = '<label>✍️ Sua mensagem</label><textarea id="supText" placeholder="Especifique…"></textarea>';
-    box.appendChild(w);
-    var send = el('div', 'supBtn send f', '📨 Enviar');
-    send._onEnter = function () {
-      if (!supSel) { toast('Escolha o assunto primeiro'); return; }
-      var t = (document.getElementById('supText').value || '').trim();
-      if (!t) { toast('Especifique sua mensagem'); Nav.focus($('supText').parentNode); return; }
-      var reason = supSel.replace(/^\S+\s/, '');
-      sendSup(reason + ' — ' + t);
-      document.getElementById('supText').value = ''; supSel = null; clearSel();
+  /* ───────── Suporte com o Assistente HubMix ─────────
+     Automatico: ao abrir 💬 Mensagens o app ja conversa com o assistente de suporte (sem digitar nada).
+     Opcional: quem tem ID de revendedor (8 numeros) troca para o atendimento do revendedor.
+     API: https://hubmix-assistente.vercel.app/app/v1  (suporte, conectar, mensagens, mensagem) */
+  var ATD = {
+    base: 'https://hubmix-assistente.vercel.app/app/v1',
+    sup: Store.get('atd_sup', null),   // { id, token, info } suporte automatico
+    rev: Store.get('atd_rev', null),   // { id, token, info } revendedor (opcional)
+    msgs: [], ult: 0, timer: null, ocupado: false, conectando: false, pedirId: false
+  };
+  function atdSes() { return ATD ? (ATD.rev || ATD.sup) : null; }
+  function atdReq(metodo, rota, corpo, cb) {
+    var x = new XMLHttpRequest();
+    x.open(metodo, ATD.base + rota, true);
+    x.setRequestHeader('Content-Type', 'application/json');
+    x.timeout = 25000;
+    x.onload = function () {
+      var j = null; try { j = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300) cb(null, j || {}); else cb({ status: x.status, message: (j && j.erro) || ('Erro ' + x.status) });
     };
-    box.appendChild(send);
+    x.onerror = x.ontimeout = function () { cb({ status: 0, message: 'Sem internet' }); };
+    x.send(corpo ? JSON.stringify(corpo) : null);
   }
-  function sendSup(reason) {
-    var p = curProfile(), label = (p && (p.name || p.user)) || '';
-    cloudRpc('celtv_support_send', { p_code: MSG.code || '', p_label: label, p_reason: reason }, function (err) {
-      if (err) toast('❌ ' + err.message); else toast('✅ Mensagem enviada');
+  function atdCorte() { var s = atdSes(); return s ? Store.get('atd_cut_' + s.id, 0) : 0; }
+  function atdNaoLidas() {
+    var s = atdSes(); if (!s) return 0;
+    var lido = Store.get('atd_lido_' + s.id, 0), n = 0;
+    for (var i = 0; i < ATD.msgs.length; i++) if (ATD.msgs[i].n > lido && ATD.msgs[i].de !== 'cliente') n++;
+    return n;
+  }
+  function atdMarcarLido() { var s = atdSes(); if (s && ATD.ult) Store.set('atd_lido_' + s.id, ATD.ult); updBadge(); }
+  function atdAdd(lista, avisar) {
+    var novas = 0, ultimaResp = null, corte = atdCorte();
+    for (var i = 0; i < (lista || []).length; i++) {
+      var m = lista[i]; if (m.n <= ATD.ult) continue;
+      ATD.ult = m.n; if (m.n <= corte) continue;
+      ATD.msgs.push(m); novas++;
+      if (m.de !== 'cliente') ultimaResp = m;
+    }
+    if (ATD.msgs.length > 150) ATD.msgs = ATD.msgs.slice(-150);
+    if (!novas) return;
+    if (current === 'msgs') { atdMarcarLido(); atdDesenhar(); }
+    else { updBadge(); if (avisar && ultimaResp) showBanner({ kind: 'info', title: ultimaResp.de === 'atendente' ? 'Mensagem do atendente' : 'Resposta do suporte', body: ultimaResp.texto.slice(0, 140) }); }
+  }
+  function atdTrocou() { clearTimeout(ATD.timer); ATD.msgs = []; ATD.ult = 0; updBadge(); }
+  // Mensagens: a cada 5 s com a tela aberta, 30 s em segundo plano (mantem ONLINE no painel).
+  function atdAgendar() {
+    clearTimeout(ATD.timer);
+    if (!atdSes()) return;
+    ATD.timer = setTimeout(atdPuxar, current === 'msgs' ? 5000 : 30000);
+  }
+  function atdStatus(t) { var st = $('atdStatus'); if (st) st.textContent = t; }
+  function atdPuxar() {
+    var s = atdSes(); if (!s) return;
+    clearTimeout(ATD.timer);
+    atdReq('GET', '/mensagens?id=' + s.id + '&token=' + encodeURIComponent(s.token) + '&desde=' + ATD.ult, null, function (err, r) {
+      if (s !== atdSes()) return;  // trocou de atendimento no meio
+      if (err && err.status === 401) {
+        if (ATD.rev) { atdSairRev('O ID do revendedor foi desconectado. Voltando ao suporte CELTV.'); return; }
+        ATD.sup = null; Store.del('atd_sup'); atdTrocou(); atdSuporte(); return;
+      }
+      if (!err) atdAdd(r.msgs, true);
+      atdStatus(err ? '⚪ sem conexão' : '🟢 online');
+      atdAgendar();
     });
   }
+  // Conecta no suporte automatico (sem ID): o servidor cria/acha o atendimento deste aparelho.
+  function atdSuporte() {
+    if (ATD.rev || ATD.conectando) return;
+    if (ATD.sup) { atdPuxar(); return; }
+    ATD.conectando = true; atdStatus('⏳ conectando…');
+    atdReq('POST', '/suporte', { aparelho: deviceId(), codigo: MSG.code || '' }, function (err, r) {
+      ATD.conectando = false;
+      if (err) { atdStatus('⚪ sem conexão'); clearTimeout(ATD.timer); ATD.timer = setTimeout(atdSuporte, current === 'msgs' ? 10000 : 60000); return; }
+      ATD.sup = { id: r.id, token: r.token, info: { empresa: r.empresa, atendente: r.atendente && r.atendente.nome } };
+      Store.set('atd_sup', ATD.sup);
+      if (!ATD.rev) { atdTrocou(); if (current === 'msgs') renderSup(); atdPuxar(); }
+    });
+  }
+  function atdConectarRev(id) {
+    id = String(id || '').replace(/\D/g, '');
+    if (id.length !== 8) { toast('O ID tem 8 números'); return; }
+    loading(true, 'Conectando ao revendedor…');
+    var ant = Store.get('atd_rev_ult', null);
+    atdReq('POST', '/conectar', { id: id, token: ant && ant.id === id ? ant.token : undefined }, function (err, r) {
+      loading(false);
+      if (err) { toast('❌ ' + err.message); return; }
+      ATD.rev = { id: id, token: r.token, info: { empresa: r.empresa, atendente: r.atendente && r.atendente.nome } };
+      Store.set('atd_rev', ATD.rev); Store.set('atd_rev_ult', { id: id, token: r.token });
+      ATD.pedirId = false; atdTrocou();
+      toast('✅ Conectado a ' + (r.empresa || 'seu revendedor'));
+      renderSup(); atdPuxar();
+    });
+  }
+  function atdSairRev(motivo) {
+    ATD.rev = null; Store.del('atd_rev'); atdTrocou();
+    if (motivo) toast(motivo);
+    if (current === 'msgs') renderSup();
+    atdSuporte();
+  }
+  function atdEnviar(texto) {
+    var s = atdSes();
+    if (!s) { toast('Conectando ao suporte… tente de novo em instantes'); atdSuporte(); return; }
+    if (ATD.ocupado) return;
+    ATD.ocupado = true; atdStatus('⏳ enviando…');
+    atdReq('POST', '/mensagem', { id: s.id, token: s.token, texto: texto }, function (err, r) {
+      ATD.ocupado = false;
+      if (err && err.status === 401) { atdPuxar(); return; }
+      if (err) { toast('❌ ' + err.message); atdStatus('⚪ sem conexão'); var c = $('atdTexto'); if (c && !c.value) c.value = texto; return; }
+      atdAdd(r.msgs, false); atdStatus('🟢 online'); atdAgendar();
+    });
+  }
+  function atdEnviarCampo() {
+    var c = $('atdTexto'); if (!c) return;
+    var t = (c.value || '').trim();
+    if (!t) { toast('Escreva sua mensagem'); Nav.focus(c.parentNode); return; }
+    c.value = ''; atdEnviar(t);
+  }
+  function atdDesenhar() {
+    var lista = $('atdLista'); if (!lista) return;
+    lista.innerHTML = '';
+    if (!ATD.msgs.length) lista.appendChild(el('div', 'empty', atdSes() ? 'Escreva sua mensagem abaixo.' : 'Conectando ao suporte…'));
+    for (var i = 0; i < ATD.msgs.length; i++) {
+      var m = ATD.msgs[i], it = el('div', 'atdMsg ' + m.de);
+      it.appendChild(el('div', 'atdTxt', m.texto));
+      var d = new Date(m.em);
+      it.appendChild(el('div', 'atdHora', (m.de === 'cliente' ? 'Você' : m.de === 'atendente' ? 'Atendente' : 'Assistente') + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes())));
+      lista.appendChild(it);
+    }
+    lista.scrollTop = lista.scrollHeight;
+  }
+  function renderSup() {
+    var box = $('supBox'); box.innerHTML = '';
+    try { box.parentNode.style.width = '44rem'; } catch (e) {}
+    var ch = box.previousElementSibling; if (ch) ch.textContent = ATD.rev ? '💬 Atendimento do revendedor' : '💬 Suporte CELTV-Play';
+    var s = atdSes();
+    var topo = el('div', 'atdTopo');
+    topo.appendChild(el('div', 'atdEmp', (s && s.info && s.info.empresa) || (ATD.rev ? 'Revendedor' : 'Suporte')));
+    var st = el('div', 'atdSt', s ? '🟢 online' : '⏳ conectando…'); st.id = 'atdStatus'; topo.appendChild(st);
+    box.appendChild(topo);
+    var lista = el('div', 'atdLista scroll'); lista.id = 'atdLista'; box.appendChild(lista);
+    var w = el('div', 'field f'); w.innerHTML = '<label>✍️ Sua mensagem</label><input id="atdTexto" type="text" maxlength="2000" placeholder="Escreva aqui…" autocomplete="off">';
+    box.appendChild(w);
+    var campo = w.querySelector('input');
+    campo.onkeydown = function (e) { if (e.keyCode === 13) { e.preventDefault(); if (e.stopPropagation) e.stopPropagation(); if (Nav.editing()) Nav.stopEdit(); atdEnviarCampo(); } };
+    var env = el('div', 'supBtn send f', '📨 Enviar'); env._onEnter = atdEnviarCampo; box.appendChild(env);
+    var apagar = el('div', 'supBtn f atdSair', '🗑 Apagar conversa');
+    apagar._onEnter = function () {
+      // Confirma com um segundo toque (dialogos nao funcionam bem no controle da TV).
+      if (!apagar._conf) { apagar._conf = true; apagar.textContent = '⚠ Toque de novo para apagar'; setTimeout(function () { apagar._conf = false; apagar.textContent = '🗑 Apagar conversa'; }, 4000); return; }
+      var ss = atdSes(); if (ss) { Store.set('atd_cut_' + ss.id, ATD.ult); Store.set('atd_lido_' + ss.id, ATD.ult); }
+      ATD.msgs = []; updBadge(); atdDesenhar(); toast('Conversa apagada neste aparelho.');
+    };
+    box.appendChild(apagar);
+    if (ATD.rev) {
+      var volta = el('div', 'supBtn f atdSair', '↩ Voltar ao suporte CELTV');
+      volta._onEnter = function () { atdSairRev('Você voltou ao suporte CELTV-Play'); };
+      box.appendChild(volta);
+    } else if (ATD.pedirId) {
+      box.appendChild(el('div', 'supNote atdSep', '🔑 Digite o ID de 8 números que seu revendedor enviou:'));
+      var wi = el('div', 'field f'); wi.innerHTML = '<label>ID do revendedor</label><input id="atdId" type="text" inputmode="numeric" maxlength="8" placeholder="00000000" autocomplete="off">';
+      box.appendChild(wi);
+      var bc = el('div', 'supBtn send f', '🔗 Conectar'); bc._onEnter = function () { atdConectarRev(($('atdId') || {}).value); }; box.appendChild(bc);
+      var bx = el('div', 'supBtn f atdSair', 'Cancelar'); bx._onEnter = function () { ATD.pedirId = false; renderSup(); Nav.focus($('atdTexto').parentNode); }; box.appendChild(bx);
+    } else {
+      var tem = el('div', 'supBtn f atdSair', '🔑 Tenho um ID de revendedor');
+      tem._onEnter = function () { ATD.pedirId = true; renderSup(); Nav.focus($('atdId').parentNode); };
+      box.appendChild(tem);
+    }
+    atdDesenhar();
+    if (!s) atdSuporte(); else atdPuxar();
+  }
+  var badgeAvisos = 0;
+  function updBadge() {
+    var n = badgeAvisos + atdNaoLidas(), b = $('msgBadge'); if (!b) return;
+    if (n > 0) { b.textContent = n > 99 ? '99' : n; b.className = 'nbadge'; } else b.className = 'nbadge hidden';
+  }
+  // Ja conectado antes: continua online no painel e recebe respostas mesmo fora da tela de mensagens.
+  if (atdSes()) setTimeout(atdPuxar, 4000);
 
   /* ───────── Teclado / controle ───────── */
   // Android (WebView) envia teclas especiais por aqui: window.cpKey(10009)
