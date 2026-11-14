@@ -7,6 +7,8 @@ import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.provider.Settings;
+import android.content.Intent;
+import android.net.Uri;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -51,6 +53,13 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void exit() {
             runOnUiThread(new Runnable() { public void run() { finishAndRemoveTask(); } });
+        }
+        @JavascriptInterface
+        public void openUrl(final String url) {
+            runOnUiThread(new Runnable() { public void run() {
+                try { Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url)); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i); }
+                catch (Exception e) {}
+            } });
         }
         @JavascriptInterface
         public String deviceId() {
