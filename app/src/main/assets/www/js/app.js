@@ -1080,7 +1080,7 @@
     atdReq('GET', '/mensagens?id=' + s.id + '&token=' + encodeURIComponent(s.token) + '&desde=' + ATD.ult, null, function (err, r) {
       if (s !== atdSes()) return;  // trocou de atendimento no meio
       if (err && err.status === 401) {
-        if (ATD.rev) { atdSairRev('O ID do revendedor foi desconectado. Voltando ao suporte CELTV.'); return; }
+        if (ATD.rev) { atdSairRev('Este ID foi desconectado. Voltando ao suporte CELTV.'); return; }
         ATD.sup = null; Store.del('atd_sup'); atdTrocou(); atdSuporte(); return;
       }
       if (!err) atdAdd(r.msgs, true);
@@ -1104,7 +1104,7 @@
   function atdConectarRev(id) {
     id = String(id || '').replace(/\D/g, '');
     if (id.length !== 8) { toast('O ID tem 8 números'); return; }
-    loading(true, 'Conectando ao revendedor…');
+    loading(true, 'Conectando…');
     var ant = Store.get('atd_rev_ult', null);
     atdReq('POST', '/conectar', { id: id, token: ant && ant.id === id ? ant.token : undefined }, function (err, r) {
       loading(false);
@@ -1112,7 +1112,7 @@
       ATD.rev = { id: id, token: r.token, info: { empresa: r.empresa, atendente: r.atendente && r.atendente.nome } };
       Store.set('atd_rev', ATD.rev); Store.set('atd_rev_ult', { id: id, token: r.token });
       ATD.pedirId = false; atdTrocou();
-      toast('✅ Conectado a ' + (r.empresa || 'seu revendedor'));
+      toast('✅ Conectado a ' + (r.empresa || 'seu atendimento'));
       renderSup(); atdPuxar();
     });
   }
@@ -1156,10 +1156,10 @@
   function renderSup() {
     var box = $('supBox'); box.innerHTML = '';
     try { box.parentNode.style.width = '44rem'; } catch (e) {}
-    var ch = box.previousElementSibling; if (ch) ch.textContent = ATD.rev ? '💬 Atendimento do revendedor' : '💬 Suporte CELTV-Play';
+    var ch = box.previousElementSibling; if (ch) ch.textContent = ATD.rev ? '💬 Seu atendimento' : '💬 Suporte CELTV-Play';
     var s = atdSes();
     var topo = el('div', 'atdTopo');
-    topo.appendChild(el('div', 'atdEmp', (s && s.info && s.info.empresa) || (ATD.rev ? 'Revendedor' : 'Suporte')));
+    topo.appendChild(el('div', 'atdEmp', (s && s.info && s.info.empresa) || (ATD.rev ? 'Atendimento' : 'Suporte')));
     var st = el('div', 'atdSt', s ? '🟢 online' : '⏳ conectando…'); st.id = 'atdStatus'; topo.appendChild(st);
     box.appendChild(topo);
     var lista = el('div', 'atdLista scroll'); lista.id = 'atdLista'; box.appendChild(lista);
@@ -1181,13 +1181,13 @@
       volta._onEnter = function () { atdSairRev('Você voltou ao suporte CELTV-Play'); };
       box.appendChild(volta);
     } else if (ATD.pedirId) {
-      box.appendChild(el('div', 'supNote atdSep', '🔑 Digite o ID de 8 números que seu revendedor enviou:'));
-      var wi = el('div', 'field f'); wi.innerHTML = '<label>ID do revendedor</label><input id="atdId" type="text" inputmode="numeric" maxlength="8" placeholder="00000000" autocomplete="off">';
+      box.appendChild(el('div', 'supNote atdSep', '🔑 Digite o ID de 8 números que você recebeu:'));
+      var wi = el('div', 'field f'); wi.innerHTML = '<label>ID de atendimento</label><input id="atdId" type="text" inputmode="numeric" maxlength="8" placeholder="00000000" autocomplete="off">';
       box.appendChild(wi);
       var bc = el('div', 'supBtn send f', '🔗 Conectar'); bc._onEnter = function () { atdConectarRev(($('atdId') || {}).value); }; box.appendChild(bc);
       var bx = el('div', 'supBtn f atdSair', 'Cancelar'); bx._onEnter = function () { ATD.pedirId = false; renderSup(); Nav.focus($('atdTexto').parentNode); }; box.appendChild(bx);
     } else {
-      var tem = el('div', 'supBtn f atdSair', '🔑 Tenho um ID de revendedor');
+      var tem = el('div', 'supBtn f atdSair', '🔑 Tenho um ID');
       tem._onEnter = function () { ATD.pedirId = true; renderSup(); Nav.focus($('atdId').parentNode); };
       box.appendChild(tem);
     }
